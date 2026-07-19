@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/CoCreate-app/CoCreate-qdrant/compare/v1.1.0...v1.1.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* set default branch to main ([dd18ba1](https://github.com/CoCreate-app/CoCreate-qdrant/commit/dd18ba1388e886cc78d50a4c1ea2b04a51e10881))
+
 # [1.1.0](https://github.com/CoCreate-app/CoCreate-qdrant/compare/v1.0.0...v1.1.0) (2026-07-19)
 
 
