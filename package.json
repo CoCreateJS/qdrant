@@ -1,6 +1,6 @@
 {
   "name": "@cocreate/qdrant",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lightweight, real-time Qdrant Vector Database CRUD wrapper and multi-tenant state routing client for the collaborative CoCreate ecosystem.",
   "keywords": [
     "qdrant",

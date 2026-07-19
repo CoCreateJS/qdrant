@@ -1,3 +1,11 @@
+# [1.1.0](https://github.com/CoCreate-app/CoCreate-qdrant/compare/v1.0.0...v1.1.0) (2026-07-19)
+
+
+### Features
+
+* Update LICENSE to clarify commercial use terms ([043b1f3](https://github.com/CoCreate-app/CoCreate-qdrant/commit/043b1f30b265ff4cf29eaa9325eb928f10dce188))
+* Update README to reflect Qdrant integration and enhance documentation ([75a90f5](https://github.com/CoCreate-app/CoCreate-qdrant/commit/75a90f57235ca10e510d6ccd08711ca531582e28))
+
 # 1.0.0 (2026-07-19)
 
 
