@@ -1,8 +1,19 @@
 {
   "name": "@cocreate/qdrant",
   "version": "1.0.0",
-  "description": "Lightweight, real-time Qdrant Vector Database CRUD wrapper and multi-tenant state routing client for the collaborative CoCreate ecosystem.", 
-  "keywords": ["qdrant", "vector", "vector-search", "embeddings", "rag", "semantic-search", "crud-api", "multi-tenant", "state-routing", "esm"],
+  "description": "Lightweight, real-time Qdrant Vector Database CRUD wrapper and multi-tenant state routing client for the collaborative CoCreate ecosystem.",
+  "keywords": [
+    "qdrant",
+    "vector",
+    "vector-search",
+    "embeddings",
+    "rag",
+    "semantic-search",
+    "crud-api",
+    "multi-tenant",
+    "state-routing",
+    "esm"
+  ],
   "publishConfig": {
     "access": "public"
   },

@@ -1,3 +1,10 @@
+# 1.0.0 (2026-07-19)
+
+
+### Features
+
+* Initial Release ([680edcd](https://github.com/CoCreate-app/CoCreate-qdrant/commit/680edcdb395e42bf83ae186db28fc5ebb1cb326a))
+
 # 1.0.0 (2026-07-18)
 
 
