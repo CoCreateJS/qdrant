@@ -1,0 +1,34 @@
+{
+  "name": "@cocreate/qdrant",
+  "version": "1.0.0",
+  "description": "Lightweight, real-time Qdrant Vector Database CRUD wrapper and multi-tenant state routing client for the collaborative CoCreate ecosystem.", 
+  "keywords": ["qdrant", "vector", "vector-search", "embeddings", "rag", "semantic-search", "crud-api", "multi-tenant", "state-routing", "esm"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "start": "webpack --config webpack.config.js",
+    "build": "webpack --mode=production --config webpack.config.js",
+    "dev": "webpack --config webpack.config.js --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoCreate-app/CoCreate-qdrant.git"
+  },
+  "author": "CoCreate LLC",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/CoCreate-app/CoCreate-qdrant/issues"
+  },
+  "homepage": "https://cocreate.app/docs/qdrant",
+  "funding": {
+    "type": "GitHub Sponsors ❤",
+    "url": "https://github.com/sponsors/CoCreate-app"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "dependencies": {
+    "@cocreate/utils": "^1.44.0",
+    "@qdrant/js-client-rest": "^1.18.0"
+  }
+}
