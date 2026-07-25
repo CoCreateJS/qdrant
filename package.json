@@ -39,7 +39,7 @@
   "type": "module",
   "main": "./src/index.js",
   "dependencies": {
-    "@cocreate/utils": "^1.44.0",
+    "@cocreate/utils": "^1.44.3",
     "@qdrant/js-client-rest": "^1.18.0"
   }
 }
