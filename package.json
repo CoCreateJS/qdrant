@@ -44,7 +44,7 @@
     "./installer": "./installer/mongodb.installer.js"
   },
   "devDependencies": {
-    "@cocreate/webpack": "^1.6.0"
+    "@cocreate/webpack": "^1.6.2"
   },
   "dependencies": {
     "@cocreate/utils": "^1.44.3",
