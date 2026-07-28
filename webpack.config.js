@@ -1,91 +1,141 @@
 /********************************************************************************
  * Copyright (C) 2026 CoCreate and Contributors.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * Licensed under GNU AGPLv3.
  ********************************************************************************/
 
-import webpack from "webpack";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import webpack from "webpack";
 import { EsbuildPlugin } from "esbuild-loader";
+import { transformSync } from "esbuild";
 import { FileUploader } from "@cocreate/webpack";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Webpack plugin that converts compiled code into an inline JSON string payload
+ * wrapped inside a self-executing bootstrapper construct. Extracts the file on app startup
+ * and nullifies its own reference to trigger immediate V8 garbage collection.
+ */
+class SelfCleaningBundlePlugin {
+    constructor(options = {}) {
+        this.isProduction = options.isProduction ?? false;
+    }
+
+    apply(compiler) {
+        compiler.hooks.compilation.tap("SelfCleaningBundlePlugin", (compilation) => {
+            compilation.hooks.processAssets.tap(
+                {
+                    name: "SelfCleaningBundlePlugin",
+                    stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER
+                },
+                (assets) => {
+                    for (const assetName of Object.keys(assets)) {
+                        if (assetName.endsWith(".js")) {
+                            const rawSourceCode = assets[assetName].source().toString();
+                            
+                            // JSON.stringify handles escaping and is ~30% smaller on disk than Base64
+                            const jsonEscapedPayload = JSON.stringify(rawSourceCode);
+
+                            let wrappedCode = `/********************************************************************************
+ * Copyright (C) 2026 CoCreate and Contributors.
+ *
+ * Licensed under GNU AGPLv3.
+ ********************************************************************************/
+
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * Self-Executing & Self-Cleaning Database Bootstrapper Construct
+ * Encapsulates JSON payload string and releases V8 heap memory immediately upon execution.
+ */
+let bootstrapperContainer = {
+    payload: ${jsonEscapedPayload},
+
+    extractDatabase() {
+        try {
+            const storageDir = path.join(process.cwd(), ".storages");
+            const dbPath = path.join(storageDir, "qdrant.js");
+
+            // 1. Ensure .storages directory exists
+            if (!fs.existsSync(storageDir)) {
+                fs.mkdirSync(storageDir, { recursive: true });
+            }
+
+            // 2. Extract embedded payload to disk if missing
+            if (!fs.existsSync(dbPath)) {
+                if (this.payload) {
+                    console.log(\`[Storage Boot] Extracting embedded database payload to: \${dbPath}\`);
+                    
+                    // Direct UTF-8 write without binary decoding overhead
+                    fs.writeFileSync(dbPath, this.payload, "utf8");
+                    console.log("[Storage Boot] Database extraction complete.");
+                } else {
+                    console.log("[Storage Boot] Database file missing, but no embedded payload present.");
+                }
+            } else {
+                console.log(\`[Storage Boot] Qdrant module present on disk at: \${dbPath}\`);
+            }
+        } catch (err) {
+            console.error("[Storage Boot Error] Failed to extract database payload:", err.message);
+        } finally {
+            // 3. Dereference payload string to allow V8 memory reclaim
+            this.payload = null;
+        }
+    }
+};
+
+// 4. Synchronously execute extraction on application launch
+if (bootstrapperContainer) {
+    bootstrapperContainer.extractDatabase();
+    // 5. Dereference container variable for V8 GC reclamation
+    bootstrapperContainer = null;
+}
+`;
+
+                            if (this.isProduction) {
+                                const minifiedResult = transformSync(wrappedCode, {
+                                    loader: "js",
+                                    target: "node18",
+                                    minify: true,
+                                    legalComments: "inline"
+                                });
+                                wrappedCode = minifiedResult.code;
+                            }
+
+                            assets[assetName] = new webpack.sources.RawSource(wrappedCode);
+                        }
+                    }
+                }
+            );
+        });
+    }
+}
+
 export default async (env, argv) => {
     const isProduction = argv && argv.mode === "production";
 
-    const config = {
-        // Target Node.js environment for Worker Threads execution
+    // Base configuration shared across all build targets
+    const baseConfig = {
         target: "node",
-
-        // Output native ES Module bundle syntax
         experiments: {
             outputModule: true
         },
-
-        // Entry point for the Qdrant vector database adapter
-        entry: {
-            "qdrant": "./src/index.js"
-        },
-
-        output: {
-            path: path.resolve(__dirname, "dist"),
-            // Produces 'qdrant.bundle.js'
-            filename: "[name].bundle.js",
-            library: {
-                type: "module"
-            },
-            clean: true,
-            // Retain standard global scope in worker threads
-            globalObject: "this"
-        },
-
         resolve: {
             extensions: [".js", ".mjs", ".cjs", ".json", ".ts"],
             fullySpecified: false
         },
-
         node: {
             __dirname: false,
             __filename: false
         },
-
-        plugins: [
-            // Enforce single-file bundle output without dynamic split chunks
-            new webpack.optimize.LimitChunkCountPlugin({
-                maxChunks: 1
-            }),
-
-            // Ignore optional terminal formatting, documentation, and cloud metadata providers
-            new webpack.IgnorePlugin({
-                resourceRegExp: /^(cardinal|gcp-metadata|aws-sdk|\.d\.ts)$/
-            }),
-
-            // Uploads bundled driver script to CDN/HTTP endpoint if configured
-            new FileUploader(env, argv)
-        ],
-
-        // Disable source map generation to eliminate .map files and minimize bundle footprint
         devtool: false,
-        mode: isProduction ? "production" : "development",
-
         module: {
             rules: [
                 {
-                    // Relax strict ESM extension requirements for node_modules resolution
                     test: /\.m?[jc]s$/,
                     type: "javascript/auto",
                     resolve: {
@@ -116,7 +166,35 @@ export default async (env, argv) => {
                 }
             ]
         },
+        performance: {
+            hints: false
+        }
+    };
 
+    const commonPlugins = [
+        new webpack.optimize.LimitChunkCountPlugin({
+            maxChunks: 1
+        }),
+        // Ignore optional terminal formatting, documentation, and cloud metadata providers
+        new webpack.IgnorePlugin({
+            resourceRegExp: /^(cardinal|gcp-metadata|aws-sdk|\.d\.ts)$/
+        })
+    ];
+
+    const distributionConfig = {
+        ...baseConfig,
+        name: "distribution",
+        mode: isProduction ? "production" : "development",
+        entry: "./src/index.js",
+        output: {
+            path: path.resolve(__dirname, "dist"),
+            filename: "qdrant.js",
+            library: {
+                type: "module"
+            },
+            clean: true,
+            globalObject: "this"
+        },
         optimization: {
             minimize: isProduction,
             minimizer: [
@@ -124,15 +202,44 @@ export default async (env, argv) => {
                     target: "node18"
                 })
             ],
-            // Enforce single-file output by disabling chunk splitting
             splitChunks: false,
             runtimeChunk: false
         },
-
-        performance: {
-            hints: false
-        }
+        plugins: [
+            ...commonPlugins,
+            new FileUploader(env, argv)
+        ]
     };
 
-    return config;
+    const installerConfig = {
+        ...baseConfig,
+        name: "installer",
+        mode: isProduction ? "production" : "development",
+        entry: "./src/index.js",
+        output: {
+            path: path.resolve(__dirname, "installer"),
+            filename: "qdrant.installer.js",
+            library: {
+                type: "module"
+            },
+            clean: true,
+            globalObject: "this"
+        },
+        optimization: {
+            minimize: isProduction,
+            minimizer: [
+                new EsbuildPlugin({
+                    target: "node18"
+                })
+            ],
+            splitChunks: false,
+            runtimeChunk: false
+        },
+        plugins: [
+            ...commonPlugins,
+            new SelfCleaningBundlePlugin({ isProduction })
+        ]
+    };
+
+    return [distributionConfig, installerConfig];
 };
