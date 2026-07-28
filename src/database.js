@@ -18,7 +18,7 @@ import {
  * active tenant name as a partition namespace.
  */
 function database(method, data) {
-	const storageName = data.storageName || data.provider || "qdrant";
+    const storageName = data.storageConfig?.name;
 	return new Promise(async (resolve) => {
 		let type = "database";
 		let databaseArray = [];

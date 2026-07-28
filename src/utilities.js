@@ -32,7 +32,7 @@ const organizations = {};
  * Supports direct connection URLs as well as credential objects containing API keys.
  */
 async function dbClient(data) {
-	const storageUrl = data.storageUrl || data.url;
+    const storageUrl = data.storageConfig?.url
 
 	if (storageUrl) {
 		if (!organizations[data.organization_id]) {

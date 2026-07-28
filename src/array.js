@@ -17,7 +17,7 @@ import {
  * We isolate multi-tenant structures cleanly by prefixing collections: "orgId_collectionName"
  */
 function array(method, data) {
-	const storageName = data.storageName || data.provider || "qdrant";
+    const storageName = data.storageConfig?.name;
 	return new Promise(async (resolve) => {
 		let type = "array";
 		let arrayArray = [];

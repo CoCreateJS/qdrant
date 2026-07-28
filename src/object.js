@@ -17,7 +17,7 @@ import {
  * Documents in Qdrant must contain a "vector" key (an array of floats representing embeddings).
  */
 function object(method, data) {
-	const storageName = data.storageName || data.provider || "qdrant";
+    const storageName = data.storageConfig?.name;
 	return new Promise(async (resolve) => {
 		try {
 			const db = await dbClient(data);
