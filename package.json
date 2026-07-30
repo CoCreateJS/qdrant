@@ -47,7 +47,7 @@
     "@cocreate/webpack": "^1.7.0"
   },
   "dependencies": {
-    "@cocreate/utils": "^1.46.0",
+    "@cocreate/utils": "^1.48.0",
     "@qdrant/js-client-rest": "^1.18.0"
   }
 }
