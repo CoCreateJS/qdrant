@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CoCreate-app/CoCreate-qdrant.git"
+    "url": "git+https://gitlab.com/cocreatejs/CoCreate-qdrant.git"
   },
   "author": "CoCreate LLC",
   "license": "AGPL-3.0",
