@@ -37,8 +37,8 @@ function database(method, data) {
 					organization_id: data.organization_id
 				});
 
-				if (data.$filter && data.$filter.query) {
-					let isFilter = queryData(dbObj, data.$filter.query);
+				if (data.filter && data.filter.query) {
+					let isFilter = queryData(dbObj, data.filter.query);
 					if (isFilter) {
 						databaseArray.push({ database: dbObj, storage: storageName });
 					}

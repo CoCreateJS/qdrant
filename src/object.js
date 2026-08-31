@@ -51,7 +51,7 @@ function object(method, data) {
 					else if (!Array.isArray(data[type]))
 						data[type] = [data[type]];
 
-					let isFilter = !!data.$filter;
+					let isFilter = !!data.filter;
 					if ((isFilter && !data[type].length) || data.isFilter) {
 						data[type].splice(0, 0, { isFilter: "isEmptyObjectFilter" });
 					}
@@ -73,7 +73,7 @@ function object(method, data) {
 						delete data[type][i].$database;
 						delete data[type][i].$array;
 
-						let queryFilter = isFilter ? data.$filter : (data[type][i].$filter || null);
+						let queryFilter = isFilter ? data.filter : (data[type][i].filter || null);
 
 						if (method === "create") {
 							data[type][i] = replaceArray(data[type][i]);
@@ -168,8 +168,8 @@ function object(method, data) {
 
 								let queryResults = [];
 
-								if (data.$filter && (data.$filter.vector || data.$filter.embeddings)) {
-									const queryVector = data.$filter.vector || data.$filter.embeddings;
+								if (data.filter && (data.filter.vector || data.filter.embeddings)) {
+									const queryVector = data.filter.vector || data.filter.embeddings;
 									const filterParams = compileFilterToQdrant(queryFilter, data.organization_id);
 
 									process.emit("usage", {
@@ -182,7 +182,7 @@ function object(method, data) {
 									const searchRes = await db.search(realTableName, {
 										vector: queryVector,
 										filter: filterParams,
-										limit: data.$filter.limit || 10,
+										limit: data.filter.limit || 10,
 										with_payload: true,
 										with_vector: true
 									});
@@ -206,8 +206,8 @@ function object(method, data) {
 
 									const scrollRes = await db.scroll(realTableName, {
 										filter: filterParams,
-										limit: data.$filter?.limit || 100,
-										offset: data.$filter?.index || undefined,
+										limit: data.filter?.limit || 100,
+										offset: data.filter?.index || undefined,
 										with_payload: true,
 										with_vector: true
 									});
@@ -222,13 +222,13 @@ function object(method, data) {
 								}
 
 								// In-memory sort fallback
-								if (data.$filter && data.$filter.sort) {
-									queryResults = sortData(queryResults, data.$filter.sort);
+								if (data.filter && data.filter.sort) {
+									queryResults = sortData(queryResults, data.filter.sort);
 								}
 
 								for (let record of queryResults) {
-									if (data.$filter && data.$filter.search) {
-										let isMatch = searchData(record, data.$filter.search);
+									if (data.filter && data.filter.search) {
+										let isMatch = searchData(record, data.filter.search);
 										if (!isMatch) continue;
 									}
 									documents.push(record);
@@ -238,7 +238,7 @@ function object(method, data) {
 						else if (method === "update") {
 							const updatePayload = { ...data[type][i] };
 							delete updatePayload._id;
-							delete updatePayload.$filter;
+							delete updatePayload.filter;
 
 							if (data[type][i]._id) {
 								const updatedDoc = await executeUpdatePoint(db, realTableName, data[type][i]._id, updatePayload, data);
