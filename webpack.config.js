@@ -7,7 +7,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import webpack from "webpack";
-import { EsbuildPlugin } from "esbuild-loader";
 import { transformSync } from "esbuild";
 import { FileUploader } from "@cocreate/webpack";
 
@@ -196,21 +195,44 @@ export default async (env, argv) => {
             globalObject: "this"
         },
         optimization: {
-            minimize: isProduction,
-            minimizer: [
-                new EsbuildPlugin({
-                    target: "node18"
-                })
-            ],
+            // Keep driver and utility identifiers intact in production.
+            minimize: false,
+            concatenateModules: false,
             splitChunks: false,
             runtimeChunk: false
         },
         plugins: [
             ...commonPlugins,
-            new FileUploader(env, argv),
+            new FileUploader(env, argv)
+        ]
+    };
+
+    const installerConfig = {
+        ...baseConfig,
+        name: "installer",
+        mode: isProduction ? "production" : "development",
+        entry: "./src/index.js",
+        output: {
+            path: path.resolve(__dirname, "installer"),
+            filename: "qdrant.installer.js",
+            library: {
+                type: "module"
+            },
+            clean: true,
+            globalObject: "this"
+        },
+        optimization: {
+            // Keep the embedded payload byte-equivalent to the runtime build.
+            minimize: false,
+            concatenateModules: false,
+            splitChunks: false,
+            runtimeChunk: false
+        },
+        plugins: [
+            ...commonPlugins,
             new SelfCleaningBundlePlugin({ isProduction })
         ]
     };
 
-    return distributionConfig;
+    return [distributionConfig, installerConfig];
 };
