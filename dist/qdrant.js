@@ -2609,23 +2609,24 @@ function isEqualValue(value1, value2) {
 }
 function queryMatch(data, query) {
   for (let key of Object.keys(query)) {
+    const queryEntry = query[key];
     let dataValue;
     try {
       dataValue = getValueFromObject(data, key, true);
     } catch (error) {
       return false;
     }
-    if (typeof query[key] === "string" || typeof query[key] === "number" || typeof query[key] === "boolean") {
-      if (Array.isArray(dataValue)) return dataValue.includes(query[key]);
-      else return dataValue === query[key];
-    } else if (Array.isArray(query[key])) {
+    if (queryEntry === null || typeof queryEntry !== "object") {
+      if (Array.isArray(dataValue)) return dataValue.includes(queryEntry);
+      else return Object.is(dataValue, queryEntry);
+    } else if (Array.isArray(queryEntry)) {
       if (Array.isArray(dataValue)) {
-        return isEqualArray(dataValue, query[key]);
+        return isEqualArray(dataValue, queryEntry);
       } else {
         return false;
       }
     } else {
-      for (let property of Object.keys(query[key])) {
+      for (let property of Object.keys(queryEntry)) {
         if (property === "$options") continue;
         if (!property.startsWith("$")) {
           if (typeof dataValue !== "object") {
@@ -2636,7 +2637,7 @@ function queryMatch(data, query) {
               { [property]: query[key][property] }
             );
         } else {
-          let queryValue = query[key][property];
+          let queryValue = queryEntry[property];
           if (isValidDate(queryValue) && isValidDate(dataValue)) {
             queryValue = new Date(queryValue);
             dataValue = new Date(dataValue);
@@ -2667,6 +2668,7 @@ function queryMatch(data, query) {
               queryStatus = dataValue >= queryValue;
               break;
             case "$in":
+              queryValue = Array.isArray(queryValue) ? queryValue : [queryValue];
               if (Array.isArray(dataValue)) {
                 queryStatus = dataValue.some(
                   (element) => queryValue.includes(element)
@@ -2676,6 +2678,7 @@ function queryMatch(data, query) {
               }
               break;
             case "$nin":
+              queryValue = Array.isArray(queryValue) ? queryValue : [queryValue];
               if (Array.isArray(dataValue)) {
                 queryStatus = !dataValue.some(
                   (element) => queryValue.includes(element)
@@ -2777,55 +2780,115 @@ function searchData(data, search) {
   for (let i = 0; i < search.length; i++) {
     let searchValue = search[i].value;
     if (!Array.isArray(searchValue)) searchValue = [searchValue];
+    const caseSensitive = search[i].caseSensitive === true || search[i].caseSensitive === "true";
+    searchValue = searchValue.map((value) => {
+      const text = String(value ?? "");
+      return caseSensitive ? text : text.toLowerCase();
+    });
     for (let key in data) {
       let value = data[key];
       let status = false;
+      if (value === null || value === void 0) value = "";
       switch (typeof value) {
         case "number":
+        case "boolean":
+        case "bigint":
+        case "symbol":
           value = value.toString();
           break;
         case "object":
-          value = JSON.stringify(value);
+          value = JSON.stringify(value) || "";
           break;
         case "function":
           value = value.toString();
           break;
       }
-      if (search[i].caseSensitive != "true" || search[i].caseSensitive != true)
-        value = value.toLowerCase();
-      for (let i2 = 0; i2 < searchValue.length; i2++) {
-        let searchString = searchValue[i2];
-        if (search[i2].caseSensitive != "true" || search[i2].caseSensitive != true)
-          searchString = searchString.toLowerCase();
-        if (searchString === "" && search[i2].operator === "and") {
+      if (!caseSensitive) value = value.toLowerCase();
+      for (let j = 0; j < searchValue.length; j++) {
+        const searchString = searchValue[j];
+        if (searchString === "" && search[i].operator === "and") {
           if (value !== "") return false;
         }
         if (value.indexOf(searchString) > -1) status = true;
         if (status) return true;
-        else if (search[i2].operator == "and") return false;
+        else if (search[i].operator == "and") return false;
       }
     }
-    if (search[i].value.length && search[i].operator == "or") return false;
+    if (searchValue.some((value) => value.length > 0) && search[i].operator === "or") return false;
   }
   return true;
+}
+function getMongoTypeOrder(value) {
+  if (value?._bsontype === "MinKey") return 0;
+  if (value == null) return 1;
+  if (typeof value === "number" || typeof value === "bigint") return 2;
+  if (typeof value === "string" || typeof value === "symbol") return 3;
+  if (Array.isArray(value)) return value.length ? 5 : 0.5;
+  if (value instanceof Uint8Array || value instanceof ArrayBuffer) return 6;
+  if (value?._bsontype === "ObjectId" || value?.constructor?.name === "ObjectId")
+    return 7;
+  if (typeof value === "boolean") return 8;
+  if (value instanceof Date) return 9;
+  if (value?._bsontype === "Timestamp") return 10;
+  if (value instanceof RegExp) return 11;
+  if (typeof value === "function") return 12;
+  if (value?._bsontype === "MaxKey") return 14;
+  if (typeof value === "object") return 4;
+  return 13;
+}
+function compareStrings(a, b) {
+  const aString = String(a);
+  const bString = String(b);
+  if (aString === bString) return 0;
+  return aString < bString ? -1 : 1;
+}
+function compareMongoObjects(a, b) {
+  const aEntries = Object.entries(a);
+  const bEntries = Object.entries(b);
+  const length = Math.min(aEntries.length, bEntries.length);
+  for (let index = 0; index < length; index++) {
+    const [aKey, aValue] = aEntries[index];
+    const [bKey, bValue] = bEntries[index];
+    const typeComparison = getMongoTypeOrder(aValue) - getMongoTypeOrder(bValue);
+    if (typeComparison) return Math.sign(typeComparison);
+    const keyComparison = compareStrings(aKey, bKey);
+    if (keyComparison) return keyComparison;
+    const valueComparison = compareMongoValues(aValue, bValue);
+    if (valueComparison) return valueComparison;
+  }
+  return Math.sign(aEntries.length - bEntries.length);
+}
+function getArraySortValue(value, direction) {
+  if (!value.length) return value;
+  const sorted = [...value].sort(compareMongoValues);
+  return direction === "desc" ? sorted[sorted.length - 1] : sorted[0];
+}
+function compareMongoValues(a, b, direction = "asc") {
+  if (Array.isArray(a)) a = getArraySortValue(a, direction);
+  if (Array.isArray(b)) b = getArraySortValue(b, direction);
+  if (Object.is(a, b) || a == null && b == null) return 0;
+  const typeComparison = getMongoTypeOrder(a) - getMongoTypeOrder(b);
+  if (typeComparison) return Math.sign(typeComparison);
+  if (a == null || b == null) return a == null ? -1 : 1;
+  if (typeof a === "number" || typeof a === "bigint")
+    return a < b ? -1 : a > b ? 1 : 0;
+  if (typeof a === "string" || typeof a === "symbol")
+    return compareStrings(a, b);
+  if (typeof a === "boolean") return Number(a) - Number(b);
+  if (a instanceof Date) return Math.sign(a.getTime() - b.getTime());
+  if (a instanceof RegExp) return compareStrings(a.toString(), b.toString());
+  if (typeof a === "object") return compareMongoObjects(a, b);
+  return compareStrings(a, b);
 }
 function sortData(data, sort) {
   return data.sort((a, b) => {
     for (let i = 0; i < sort.length; i++) {
-      let key = sort[i].key;
-      if (a[key] == null && b[key] == null) continue;
-      if (a[key] == null) return sort[i].direction === "desc" ? -1 : 1;
-      if (b[key] == null) return sort[i].direction === "desc" ? 1 : -1;
-      if (typeof a[key] !== typeof b[key]) {
-        return typeof a[key] < typeof b[key] ? -1 : 1;
-      }
-      if (a[key] !== b[key]) {
-        if (typeof a[key] === "string") {
-          return sort[i].direction === "desc" ? b[key].localeCompare(a[key]) : a[key].localeCompare(b[key]);
-        } else {
-          return sort[i].direction === "desc" ? b[key] - a[key] : a[key] - b[key];
-        }
-      }
+      const key = sort[i].key;
+      const direction = sort[i].direction === "desc" ? "desc" : "asc";
+      const aValue = getValueFromObject(a, key);
+      const bValue = getValueFromObject(b, key);
+      const comparison = compareMongoValues(aValue, bValue, direction);
+      if (comparison) return direction === "desc" ? -comparison : comparison;
     }
     return 0;
   });
@@ -2958,8 +3021,8 @@ function array(method, data) {
             if (col.name.startsWith(prefix)) {
               const cleanName = col.name.substring(prefix.length);
               const tableObj = { name: cleanName };
-              if (data.$filter && data.$filter.query) {
-                let isFilter = queryData(tableObj, data.$filter.query);
+              if (data.filter && data.filter.query) {
+                let isFilter = queryData(tableObj, data.filter.query);
                 if (isFilter) {
                   arrayArray.push({ name: cleanName, database, storage: storageName });
                 }
@@ -3069,7 +3132,7 @@ function array(method, data) {
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (array);
 
 /* harmony export */ __webpack_require__.d(__webpack_exports__, [
-/* harmony export */   "A", 0, /* export default binding */ __WEBPACK_DEFAULT_EXPORT__
+/* harmony export */   "A", 0, __WEBPACK_DEFAULT_EXPORT__
 /* harmony export */ ]);
 
 
@@ -3097,8 +3160,8 @@ function database(method, data) {
           data: { api: "listDatabases", context: dbName },
           organization_id: data.organization_id
         });
-        if (data.$filter && data.$filter.query) {
-          let isFilter = queryData(dbObj, data.$filter.query);
+        if (data.filter && data.filter.query) {
+          let isFilter = queryData(dbObj, data.filter.query);
           if (isFilter) {
             databaseArray.push({ database: dbObj, storage: storageName });
           }
@@ -3132,7 +3195,7 @@ function database(method, data) {
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (database);
 
 /* harmony export */ __webpack_require__.d(__webpack_exports__, [
-/* harmony export */   "A", 0, /* export default binding */ __WEBPACK_DEFAULT_EXPORT__
+/* harmony export */   "A", 0, __WEBPACK_DEFAULT_EXPORT__
 /* harmony export */ ]);
 
 
@@ -3174,7 +3237,7 @@ function object(method, data) {
             data[type] = [{ _id: data[type] }];
           else if (!Array.isArray(data[type]))
             data[type] = [data[type]];
-          let isFilter = !!data.$filter;
+          let isFilter = !!data.filter;
           if (isFilter && !data[type].length || data.isFilter) {
             data[type].splice(0, 0, { isFilter: "isEmptyObjectFilter" });
           }
@@ -3191,7 +3254,7 @@ function object(method, data) {
             delete data[type][i].$storage;
             delete data[type][i].$database;
             delete data[type][i].$array;
-            let queryFilter = isFilter ? data.$filter : data[type][i].$filter || null;
+            let queryFilter = isFilter ? data.filter : data[type][i].filter || null;
             if (method === "create") {
               data[type][i] = replaceArray(data[type][i]);
               data[type][i] = (0,_cocreate_utils__WEBPACK_IMPORTED_MODULE_0__/* .dotNotationToObject */ .O)(data[type][i]);
@@ -3269,8 +3332,8 @@ function object(method, data) {
                   organization_id: data.organization_id
                 });
                 let queryResults = [];
-                if (data.$filter && (data.$filter.vector || data.$filter.embeddings)) {
-                  const queryVector = data.$filter.vector || data.$filter.embeddings;
+                if (data.filter && (data.filter.vector || data.filter.embeddings)) {
+                  const queryVector = data.filter.vector || data.filter.embeddings;
                   const filterParams = compileFilterToQdrant(queryFilter, data.organization_id);
                   process.emit("usage", {
                     type: "egress",
@@ -3280,7 +3343,7 @@ function object(method, data) {
                   const searchRes = await db.search(realTableName, {
                     vector: queryVector,
                     filter: filterParams,
-                    limit: data.$filter.limit || 10,
+                    limit: data.filter.limit || 10,
                     with_payload: true,
                     with_vector: true
                   });
@@ -3301,8 +3364,8 @@ function object(method, data) {
                   });
                   const scrollRes = await db.scroll(realTableName, {
                     filter: filterParams,
-                    limit: data.$filter?.limit || 100,
-                    offset: data.$filter?.index || void 0,
+                    limit: data.filter?.limit || 100,
+                    offset: data.filter?.index || void 0,
                     with_payload: true,
                     with_vector: true
                   });
@@ -3314,12 +3377,12 @@ function object(method, data) {
                     });
                   }
                 }
-                if (data.$filter && data.$filter.sort) {
-                  queryResults = sortData(queryResults, data.$filter.sort);
+                if (data.filter && data.filter.sort) {
+                  queryResults = sortData(queryResults, data.filter.sort);
                 }
                 for (let record of queryResults) {
-                  if (data.$filter && data.$filter.search) {
-                    let isMatch = (0,_cocreate_utils__WEBPACK_IMPORTED_MODULE_1__/* .searchData */ .Nw)(record, data.$filter.search);
+                  if (data.filter && data.filter.search) {
+                    let isMatch = (0,_cocreate_utils__WEBPACK_IMPORTED_MODULE_1__/* .searchData */ .Nw)(record, data.filter.search);
                     if (!isMatch) continue;
                   }
                   documents.push(record);
@@ -3328,7 +3391,7 @@ function object(method, data) {
             } else if (method === "update") {
               const updatePayload = { ...data[type][i] };
               delete updatePayload._id;
-              delete updatePayload.$filter;
+              delete updatePayload.filter;
               if (data[type][i]._id) {
                 const updatedDoc = await executeUpdatePoint(db, realTableName, data[type][i]._id, updatePayload, data);
                 if (updatedDoc) {
@@ -3395,7 +3458,7 @@ function object(method, data) {
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (object);
 
 /* harmony export */ __webpack_require__.d(__webpack_exports__, [
-/* harmony export */   "A", 0, /* export default binding */ __WEBPACK_DEFAULT_EXPORT__
+/* harmony export */   "A", 0, __WEBPACK_DEFAULT_EXPORT__
 /* harmony export */ ]);
 
 
@@ -41501,7 +41564,7 @@ async function send(data) {
 /* harmony default export */ const src = ({ send });
 
 /* harmony export */ __webpack_require__.d(__webpack_exports__, [
-/* harmony export */   "A", 0, /* export default binding */ src
+/* harmony export */   "A", 0, src
 /* harmony export */ ]);
 
 const __webpack_exports__default = __webpack_exports__.A;
