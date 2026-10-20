@@ -3211,7 +3211,7 @@ function object(method, data) {
                 _id: id,
                 organization_id: orgId,
                 created,
-                modified: null,
+                updated: null,
                 ...recordPayload
               };
               process.emit("usage", {
@@ -3245,9 +3245,9 @@ function object(method, data) {
                 if (retrieveRes.length > 0) {
                   let dbRecord = retrieveRes[0].payload;
                   let vector = retrieveRes[0].vector;
-                  if ($storage.length && data[type][i].modified && data[type][i].modified.on) {
-                    let clientTime = new Date(data[type][i].modified.on);
-                    let dbTime = new Date(dbRecord.modified ? dbRecord.modified.on : 0);
+                  if ($storage.length && data[type][i].updated && data[type][i].updated.on) {
+                    let clientTime = new Date(data[type][i].updated.on);
+                    let dbTime = new Date(dbRecord.updated ? dbRecord.updated.on : 0);
                     if (clientTime > dbTime) {
                       const updatedRecord = { ...dbRecord, ...data[type][i] };
                       const savedRecord = await executeUpdatePoint(db, realTableName, data[type][i]._id, updatedRecord, data);
@@ -3478,7 +3478,7 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
         return null;
       }
     }
-    const modified = {
+    const updated = {
       on: new Date(requestData.timeStamp).toISOString(),
       by: requestData.user_id || requestData.clientId
     };
@@ -3490,14 +3490,14 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
     delete savePayload._id;
     delete savePayload.organization_id;
     delete savePayload.created;
-    delete savePayload.modified;
+    delete savePayload.updated;
     delete savePayload.vector;
     delete savePayload.embeddings;
     const recordToWrite = {
       _id: pointId,
       organization_id: requestData.organization_id,
-      created: currentRecord.created || modified,
-      modified,
+      created: currentRecord.created || updated,
+      updated,
       ...savePayload
     };
     process.emit("usage", {

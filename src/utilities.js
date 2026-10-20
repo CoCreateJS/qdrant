@@ -120,7 +120,7 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
 			}
 		}
 
-		const modified = {
+		const updated = {
 			on: new Date(requestData.timeStamp).toISOString(),
 			by: requestData.user_id || requestData.clientId
 		};
@@ -137,15 +137,15 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
 		delete savePayload._id;
 		delete savePayload.organization_id;
 		delete savePayload.created;
-		delete savePayload.modified;
+		delete savePayload.updated;
 		delete savePayload.vector;
 		delete savePayload.embeddings;
 
 		const recordToWrite = {
 			_id: pointId,
 			organization_id: requestData.organization_id,
-			created: currentRecord.created || modified,
-			modified,
+			created: currentRecord.created || updated,
+			updated,
 			...savePayload
 		};
 
