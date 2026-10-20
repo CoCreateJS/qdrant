@@ -40,8 +40,7 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./dist": "./dist/qdrant.js",
-    "./installer": "./installer/qdrant.installer.js"
+    "./dist": "./dist/qdrant.js"
   },
   "devDependencies": {
     "@cocreate/webpack": "^1.9.0"

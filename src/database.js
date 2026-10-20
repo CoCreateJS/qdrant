@@ -7,7 +7,6 @@ import {
 
 import { 
     dbClient, 
-    createFilter, 
     createData,
     errorHandler 
 } from "./utilities.js";
