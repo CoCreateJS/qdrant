@@ -77,6 +77,7 @@ function object(method, data) {
 						if (method === "create") {
 							data[type][i] = replaceArray(data[type][i]);
 							data[type][i] = dotNotationToObject(data[type][i]);
+							delete data[type][i].modified;
 
 							// Qdrant point IDs must be UUIDs or 64-bit integers.
 							const id = data[type][i]._id || generateUUID();
@@ -92,6 +93,9 @@ function object(method, data) {
 							const recordPayload = { ...data[type][i] };
 							delete recordPayload._id;
 							delete recordPayload.organization_id;
+							delete recordPayload.created;
+							delete recordPayload.updated;
+							delete recordPayload.modified;
 							delete recordPayload.vector;
 							delete recordPayload.embeddings;
 
@@ -99,7 +103,7 @@ function object(method, data) {
 								_id: id,
 								organization_id: orgId,
 								created,
-								updated: null,
+								updated: created,
 								...recordPayload
 							};
 

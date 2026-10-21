@@ -3258,6 +3258,7 @@ function object(method, data) {
             if (method === "create") {
               data[type][i] = replaceArray(data[type][i]);
               data[type][i] = (0,_cocreate_utils__WEBPACK_IMPORTED_MODULE_0__/* .dotNotationToObject */ .O)(data[type][i]);
+              delete data[type][i].modified;
               const id = data[type][i]._id || generateUUID();
               const orgId = data.organization_id;
               const created = {
@@ -3268,13 +3269,16 @@ function object(method, data) {
               const recordPayload = { ...data[type][i] };
               delete recordPayload._id;
               delete recordPayload.organization_id;
+              delete recordPayload.created;
+              delete recordPayload.updated;
+              delete recordPayload.modified;
               delete recordPayload.vector;
               delete recordPayload.embeddings;
               const finalPayload = {
                 _id: id,
                 organization_id: orgId,
                 created,
-                updated: null,
+                updated: created,
                 ...recordPayload
               };
               process.emit("usage", {
@@ -3554,6 +3558,7 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
     delete savePayload.organization_id;
     delete savePayload.created;
     delete savePayload.updated;
+    delete savePayload.modified;
     delete savePayload.vector;
     delete savePayload.embeddings;
     const recordToWrite = {

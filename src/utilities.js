@@ -138,6 +138,7 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
 		delete savePayload.organization_id;
 		delete savePayload.created;
 		delete savePayload.updated;
+		delete savePayload.modified;
 		delete savePayload.vector;
 		delete savePayload.embeddings;
 
