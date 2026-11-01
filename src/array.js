@@ -14,6 +14,8 @@ import {
 /**
  * "array" operations mapped directly to Qdrant Collections.
  * We isolate multi-tenant structures cleanly by prefixing collections: "orgId_collectionName"
+ * @private
+ * @environment server
  */
 function array(method, data) {
     const storageName = data.storageConfig?.name;

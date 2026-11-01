@@ -23,6 +23,8 @@ import object from "./object.js";
  * Routes vector CRUD requests to appropriate Qdrant database, array, or object modules.
  * @param {Object} data - CRUD request payload containing method, database, array, organization_id, etc.
  * @returns {Promise<Object>} Execution result from Qdrant vector database layer
+ * @public
+ * @environment server
  */
 async function send(data) {
     if (!data || !data.method) {
@@ -38,3 +40,10 @@ async function send(data) {
 }
 
 export default { send };
+
+/**
+ * Lightweight, real-time Qdrant Vector Database CRUD wrapper and multi-tenant state routing client for the collaborative CoCreate ecosystem.
+ *
+ * @module qdrant
+ * @environment server
+ */

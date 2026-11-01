@@ -13,8 +13,10 @@ import {
 
 /**
  * "database" operations. Since Qdrant is catalog-less and runs globally,
- * we emulate isolated databases by appending a prefix or treating the 
+ * we emulate isolated databases by appending a prefix or treating the
  * active tenant name as a partition namespace.
+ * @private
+ * @environment server
  */
 function database(method, data) {
     const storageName = data.storageConfig?.name;

@@ -30,6 +30,8 @@ const organizations = {};
  * Dynamically resolves or caches a long-lived Qdrant Vector Client connection.
  * Caches the connection promise to prevent concurrent, duplicate handshakes.
  * Supports direct connection URLs as well as credential objects containing API keys.
+ * @private
+ * @environment server
  */
 async function dbClient(data) {
     const storageUrl = data.storageConfig?.url
@@ -99,6 +101,8 @@ process.on("orgDeleted", (organization_id) => {
 
 /**
  * Simulates transactional updates inside Qdrant by performing a Retrieve-Modify-Upsert lock pattern.
+ * @private
+ * @environment server
  */
 async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, requestData) {
 	try {
@@ -175,6 +179,8 @@ async function executeUpdatePoint(db, realTableName, pointId, rawUpdateInput, re
 
 /**
  * Applies MongoDB update operators recursively on payloads before index storage.
+ * @private
+ * @environment server
  */
 function applyMongoUpdate(record, updatePayload) {
 	let target = { ...record };
@@ -265,6 +271,8 @@ function applyMongoUpdate(record, updatePayload) {
 
 /**
  * Normalizes and translates Mongo-style schema filters dynamically to Qdrant Payload Filter syntax.
+ * @private
+ * @environment server
  */
 function compileFilterToQdrant(filter, organizationId) {
 	let qdrantFilter = {
@@ -311,6 +319,8 @@ function compileFilterToQdrant(filter, organizationId) {
 
 /**
  * UUID generator utility used to produce fully compliant UUID-v4 point IDs for Qdrant.
+ * @private
+ * @environment server
  */
 function generateUUID() {
 	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {

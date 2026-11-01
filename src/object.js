@@ -14,6 +14,8 @@ import {
 /**
  * "object" operations mapped to Qdrant Collection Points (Vector + Metadata Payload).
  * Documents in Qdrant must contain a "vector" key (an array of floats representing embeddings).
+ * @private
+ * @environment server
  */
 function object(method, data) {
     const storageName = data.storageConfig?.name;
