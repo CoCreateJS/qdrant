@@ -24,17 +24,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cocreatejs/CoCreate-qdrant.git"
+    "url": "git+https://github.com/CoCreateJS/qdrant.git"
   },
   "author": "CoCreate LLC",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/CoCreateJS/CoCreate-qdrant/issues"
+    "url": "https://github.com/CoCreateJS/qdrant/issues"
   },
   "homepage": "https://CoCreateJS.com/docs/qdrant",
   "funding": {
     "type": "GitHub Sponsors ❤",
-    "url": "https://github.com/sponsors/CoCreate-app"
+    "url": "https://github.com/sponsors/CoCreateJS"
   },
   "type": "module",
   "main": "./src/index.js",
