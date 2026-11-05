@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/CoCreateJS/qdrant/compare/v2.0.0...v2.0.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* upgrade CoCreate dependencies to v2 ([a03f9b2](https://github.com/CoCreateJS/qdrant/commit/a03f9b2e6c3a9f86232de1088308129b3197e0f8))
+
 # [2.0.0](https://github.com/CoCreateJS/qdrant/compare/v1.1.1...v2.0.0) (2026-11-02)
 
 
