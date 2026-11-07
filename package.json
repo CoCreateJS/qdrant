@@ -43,10 +43,10 @@
     "./dist": "./dist/qdrant.js"
   },
   "devDependencies": {
-    "@cocreate/webpack": "^2.0.0"
+    "@cocreate/webpack": "^2.0.1"
   },
   "dependencies": {
-    "@cocreate/utils": "^2.0.0",
+    "@cocreate/utils": "^2.0.2",
     "@qdrant/js-client-rest": "^1.18.0"
   }
 }
