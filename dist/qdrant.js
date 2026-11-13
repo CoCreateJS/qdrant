@@ -2557,8 +2557,6 @@ class ApiError extends Error {
 /* harmony export */ });
 /* unused harmony exports isEqualArray, isEqualObject, queryData, sortData */
 /* unused harmony import specifier */ var getValueFromObject;
-/* unused harmony import specifier */ var isValidDate;
-
 
 function isEqualArray(arr1, arr2) {
   if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
@@ -2607,169 +2605,178 @@ function isEqualValue(value1, value2) {
   }
   return false;
 }
-function queryMatch(data, query) {
-  for (let key of Object.keys(query)) {
-    const queryEntry = query[key];
-    let dataValue;
-    try {
-      dataValue = getValueFromObject(data, key, true);
-    } catch (error) {
+function pathResult(data, path) {
+  if (!path.includes(".") && !path.includes("[")) {
+    const exists = data !== null && typeof data === "object" && Object.hasOwn(data, path);
+    return { exists, values: exists ? [data[path]] : [] };
+  }
+  const keys = String(path).replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+  const visit = (value, index) => {
+    if (index === keys.length) return { exists: true, values: [value] };
+    if (Array.isArray(value) && !/^\d+$/.test(keys[index])) {
+      const result = { exists: false, values: [] };
+      for (const item of value) {
+        const child = visit(item, index);
+        result.exists ||= child.exists;
+        for (const leaf of child.values) result.values.push(leaf);
+      }
+      return result;
+    }
+    if (value === null || typeof value !== "object" || !Object.hasOwn(value, keys[index]))
+      return { exists: false, values: [] };
+    return visit(value[keys[index]], index + 1);
+  };
+  return visit(data, 0);
+}
+function queryType(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  if (value instanceof Date) return "date";
+  return typeof value;
+}
+function equalQueryValue(value, expected) {
+  if (Array.isArray(value)) {
+    if (Array.isArray(expected) && isEqualArray(value, expected)) return true;
+    return value.some((item) => isEqualValue(item, expected));
+  }
+  return isEqualValue(value, expected);
+}
+function compareQueryValue(value, expected, operator) {
+  switch (operator) {
+    case "$lt":
+      return value < expected;
+    case "$lte":
+      return value <= expected;
+    case "$gt":
+      return value > expected;
+    case "$gte":
+      return value >= expected;
+    default:
       return false;
-    }
-    if (queryEntry === null || typeof queryEntry !== "object") {
-      if (Array.isArray(dataValue)) return dataValue.includes(queryEntry);
-      else return Object.is(dataValue, queryEntry);
-    } else if (Array.isArray(queryEntry)) {
-      if (Array.isArray(dataValue)) {
-        return isEqualArray(dataValue, queryEntry);
-      } else {
-        return false;
-      }
-    } else {
-      for (let property of Object.keys(queryEntry)) {
-        if (property === "$options") continue;
-        if (!property.startsWith("$")) {
-          if (typeof dataValue !== "object") {
-            return false;
-          } else
-            return queryMatch(
-              { [property]: getValueFromObject(dataValue, property) },
-              { [property]: query[key][property] }
-            );
-        } else {
-          let queryValue = queryEntry[property];
-          if (isValidDate(queryValue) && isValidDate(dataValue)) {
-            queryValue = new Date(queryValue);
-            dataValue = new Date(dataValue);
-          }
-          let queryStatus = false;
-          switch (property) {
-            case "$eq":
-              queryStatus = isEqualValue(dataValue, queryValue);
-              break;
-            case "$ne":
-              queryStatus = !isEqualValue(dataValue, queryValue);
-              break;
-            case "$not":
-              queryStatus = !queryMatch(data, {
-                [key]: query[key]["$not"]
-              });
-              break;
-            case "$lt":
-              queryStatus = dataValue < queryValue;
-              break;
-            case "$lte":
-              queryStatus = dataValue <= queryValue;
-              break;
-            case "$gt":
-              queryStatus = dataValue > queryValue;
-              break;
-            case "$gte":
-              queryStatus = dataValue >= queryValue;
-              break;
-            case "$in":
-              queryValue = Array.isArray(queryValue) ? queryValue : [queryValue];
-              if (Array.isArray(dataValue)) {
-                queryStatus = dataValue.some(
-                  (element) => queryValue.includes(element)
-                );
-              } else {
-                queryStatus = queryValue.includes(dataValue);
-              }
-              break;
-            case "$nin":
-              queryValue = Array.isArray(queryValue) ? queryValue : [queryValue];
-              if (Array.isArray(dataValue)) {
-                queryStatus = !dataValue.some(
-                  (element) => queryValue.includes(element)
-                );
-              } else {
-                queryStatus = !queryValue.includes(dataValue);
-              }
-              break;
-            case "$all":
-              if (Array.isArray(dataValue) && Array.isArray(queryValue)) {
-                queryStatus = queryValue.every(
-                  (element) => dataValue.includes(element)
-                );
-              }
-              break;
-            case "$elemMatch":
-              if (Array.isArray(data[key])) {
-                queryStatus = data[key].some(
-                  (element) => queryMatch(element, query[key][property])
-                );
-              }
-              break;
-            case "$size":
-              if (Array.isArray(dataValue)) {
-                queryStatus = dataValue.length === queryValue;
-              }
-              break;
-            case "$exists":
-              queryStatus = queryValue ? data.hasOwnProperty(key) : !data.hasOwnProperty(key);
-              break;
-            case "$regex":
-              if (typeof dataValue === "string") {
-                let regexFlag = query[key]["$options"] || "";
-                let regex = new RegExp(queryValue, regexFlag);
-                queryStatus = regex.test(dataValue);
-              }
-              break;
-            case "$type":
-              let dataType = typeof dataValue;
-              if (Array.isArray(dataValue)) {
-                dataType = "array";
-              }
-              queryStatus = dataType === queryValue;
-              break;
-            case "$mod":
-              if (typeof dataValue === "number" && Array.isArray(queryValue) && queryValue.length === 2) {
-                const [divisor, remainder] = queryValue;
-                queryStatus = dataValue % divisor === remainder;
-              }
-              break;
-            case "$where":
-              if (typeof queryValue === "function") {
-                try {
-                } catch (error) {
-                  console.error(
-                    "Error in queryData $where function:",
-                    error
-                  );
-                }
-              }
-              break;
-            default:
-              console.log("unknown operator");
-              break;
-          }
-          if (!queryStatus) return false;
-        }
-      }
-      return true;
-    }
   }
 }
+function matchFieldValue(value, exists, condition, document, key) {
+  if (condition === null || typeof condition !== "object" || condition instanceof Date || condition instanceof RegExp)
+    return exists ? equalQueryValue(value, condition) : condition === void 0;
+  if (Array.isArray(condition))
+    return exists && Array.isArray(value) && isEqualArray(value, condition);
+  const keys = Object.keys(condition);
+  const operatorKeys = keys.filter((name) => name.startsWith("$"));
+  if (!operatorKeys.length)
+    return exists && value !== null && typeof value === "object" && queryData(value, condition);
+  for (const operator of operatorKeys) {
+    const expected = condition[operator];
+    if (operator === "$options") continue;
+    let result = false;
+    switch (operator) {
+      case "$eq":
+        result = exists ? equalQueryValue(value, expected) : expected === void 0;
+        break;
+      case "$ne":
+        result = !matchFieldValue(value, exists, { $eq: expected }, document, key);
+        break;
+      case "$not":
+        result = !matchFieldValue(value, exists, expected, document, key);
+        break;
+      case "$lt":
+      case "$lte":
+      case "$gt":
+      case "$gte":
+        result = exists && (Array.isArray(value) ? value.some((item) => compareQueryValue(item, expected, operator)) : compareQueryValue(value, expected, operator));
+        break;
+      case "$in":
+      case "$nin": {
+        const choices = Array.isArray(expected) ? expected : [expected];
+        const matched = exists ? Array.isArray(value) ? value.some((item) => choices.some((choice) => equalQueryValue(item, choice))) : choices.some((choice) => equalQueryValue(value, choice)) : choices.includes(void 0);
+        result = operator === "$in" ? matched : !matched;
+        break;
+      }
+      case "$all":
+        result = Array.isArray(value) && Array.isArray(expected) && expected.every((item) => value.some((entry) => isEqualValue(entry, item)));
+        break;
+      case "$elemMatch":
+        result = Array.isArray(value) && value.some((item) => {
+          if (expected && typeof expected === "object" && !Array.isArray(expected) && Object.keys(expected).every((name) => name.startsWith("$")))
+            return matchFieldValue(item, true, expected, item, key);
+          return queryData(item, expected);
+        });
+        break;
+      case "$size":
+        result = Array.isArray(value) && value.length === expected;
+        break;
+      case "$exists":
+        result = Boolean(expected) === exists;
+        break;
+      case "$regex": {
+        const expression = expected instanceof RegExp ? new RegExp(expected.source, expected.flags) : new RegExp(expected, condition.$options || "");
+        const values = Array.isArray(value) ? value : [value];
+        result = exists && values.some((item) => {
+          if (typeof item !== "string") return false;
+          expression.lastIndex = 0;
+          return expression.test(item);
+        });
+        break;
+      }
+      case "$type": {
+        const aliases = { bool: "boolean", int: "number", long: "number", double: "number", decimal: "number" };
+        const actual = queryType(value);
+        const expectedTypes = Array.isArray(expected) ? expected : [expected];
+        result = exists && expectedTypes.some((type) => (aliases[type] || type) === actual);
+        break;
+      }
+      case "$mod":
+        result = exists && Array.isArray(expected) && expected.length === 2 && expected[0] !== 0 && (Array.isArray(value) ? value.some((item) => typeof item === "number" && item % expected[0] === expected[1]) : typeof value === "number" && value % expected[0] === expected[1]);
+        break;
+      case "$where":
+        result = typeof expected === "function" && Boolean(expected.call(document));
+        break;
+      default:
+        return false;
+    }
+    if (!result) return false;
+  }
+  return true;
+}
+function matchPathResult(result, condition, document, key) {
+  if (result.values.length <= 1)
+    return matchFieldValue(result.values[0], result.exists, condition, document, key);
+  const operators = condition && typeof condition === "object" && !Array.isArray(condition) ? Object.keys(condition).filter((name) => name.startsWith("$")) : [];
+  if (!operators.length)
+    return result.values.some((value) => matchFieldValue(value, true, condition, document, key));
+  for (const operator of operators) {
+    if (operator === "$options") continue;
+    const expected = condition[operator];
+    if (operator === "$not") {
+      if (matchPathResult(result, expected, document, key)) return false;
+      continue;
+    }
+    const negative = operator === "$ne" || operator === "$nin";
+    const positive = operator === "$ne" ? "$eq" : operator === "$nin" ? "$in" : operator;
+    const predicate = { [positive]: expected };
+    if (operator === "$regex" && condition.$options) predicate.$options = condition.$options;
+    const matched = result.values.some((value) => matchFieldValue(value, true, predicate, document, key));
+    if (negative ? matched : !matched) return false;
+  }
+  return true;
+}
 function queryData(data, query) {
-  if (!query) return true;
-  if (query.$and) {
-    for (let i = 0; i < query.$and.length; i++) {
-      if (!queryData(data, query.$and[i])) return false;
-    }
-  }
-  if (query.$nor) {
-    for (let i = 0; i < query.$nor.length; i++) {
-      if (queryData(data, query.$nor[i])) return false;
-    }
-  }
-  for (let key of Object.keys(query)) {
-    if (key === "$and" || key === "$or") continue;
-    if (!queryMatch(data, { [key]: query[key] })) return false;
-  }
-  if (query.$or) {
-    for (let i = 0; i < query.$or.length; i++) {
-      if (queryData(data, query.$or[i])) return true;
+  if (query === void 0 || query === null) return true;
+  if (Array.isArray(query)) return query.every((condition) => queryData(data, condition));
+  if (typeof query !== "object") return false;
+  for (const [key, condition] of Object.entries(query)) {
+    if (key === "$and") {
+      if (!Array.isArray(condition) || !condition.every((part) => queryData(data, part))) return false;
+    } else if (key === "$or") {
+      if (!Array.isArray(condition) || !condition.some((part) => queryData(data, part))) return false;
+    } else if (key === "$nor") {
+      if (!Array.isArray(condition) || condition.some((part) => queryData(data, part))) return false;
+    } else if (key === "$where") {
+      if (typeof condition !== "function" || !condition.call(data)) return false;
+    } else if (key.startsWith("$")) {
+      return false;
+    } else {
+      const result = pathResult(data, key);
+      if (!matchPathResult(result, condition, data, key)) return false;
     }
   }
   return true;
